@@ -1,6 +1,7 @@
 if (!Meteor.roles) Meteor.roles = new Meteor.Collection("roles");
 
 if ('undefined' === typeof Roles) Roles = {};
+if ('undefined' === typeof Roles._permission_checks) Roles._permission_checks = {};
 
 _.extend(Roles, {
   _flatten: function (ary) {
@@ -34,6 +35,10 @@ _.extend(Roles, {
     roles = Roles._flatten(roles);
 
     Meteor.roles.update({ name: { $in: roles } }, { $addToSet: { permissions: { $each: permissions } } }, { multi: true } );
+  },
+
+  addPermissionCheck: function (permission, check) {
+    Roles._permission_checks[permission] = check;
   },
 
   removePermissionsFromRoles: function (permissions, roles) {
@@ -81,7 +86,11 @@ _.extend(Roles, {
     return user ? true : false;
   },
 
-  userCan: function (permissions, userId) {
+  userCan: function () {
+    var args = Array.prototype.slice.call(arguments);
+    var permissions = args.shift();
+    var userId = args[0];
+
     if (!permissions) return true;
     permissions = Roles._flatten(permissions);
 
@@ -92,8 +101,10 @@ _.extend(Roles, {
     });
 
     if (user) {
-      role = Meteor.roles.findOne({ name: { $in: user.roles }, permissions: { $in: permissions } });
-      if (role) return true;
+      var roles = Meteor.roles.find({ name: { $in: user.roles }, permissions: { $in: permissions } }).fetch();
+      var myPermissions = _.intersection(_.uniq(_.flatten(_.pluck(roles, 'permissions'))), permissions);
+
+      return _.any(myPermissions, function(permission){ return Roles._permission_checks[permission] ? Roles._permission_checks[permission](args) : true });
     }
 
     return false;

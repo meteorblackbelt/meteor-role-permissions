@@ -1,7 +1,7 @@
 Package.describe({
   name: 'meteorblackbelt:role-permissions',
   summary: 'Role-based access control for Meteor',
-  version: '0.0.1',
+  version: '0.0.2',
   documentation: null
 });
 
